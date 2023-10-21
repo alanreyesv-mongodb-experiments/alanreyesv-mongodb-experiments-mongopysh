@@ -1,11 +1,38 @@
-from typing import Optional
-from pymongo import MongoClient
-import pymongo.cursor
+import sys
+from code import InteractiveConsole
+
 import pymongo.command_cursor
-from pymongo.database import Database
+import pymongo.cursor
 import pymongo.results
+from pymongo import MongoClient
+from pymongo.database import Database
 from pymongo.server_type import SERVER_TYPE
-from pymongo.topology_description import TOPOLOGY_TYPE, TopologyDescription
+from pymongo.topology_description import TOPOLOGY_TYPE
+import traceback
+
+from types import CodeType
+from typing import Optional
+
+from pymongo.topology_description import TopologyDescription
+
+
+class MongoPyShell(InteractiveConsole):
+    def __init__(self, context: dict) -> None:
+        self.context = context
+        super().__init__(context)
+
+    def runcode(self, code: CodeType) -> None:
+        super().runcode(code)
+        sys.ps1 = self.context["prompt"]()
+
+    def showtraceback(self) -> None:
+        err_type, err_instance, err_traceback = sys.exc_info()
+        tb = traceback.extract_tb(err_traceback, 1)
+
+        self.context["last_error"] = err_instance
+        self.context["last_traceback"] = tb
+
+        self.context["console"].print_exception(suppress=["code"])
 
 
 def displayhook(ctx, value):
@@ -15,7 +42,7 @@ def displayhook(ctx, value):
     # Prevent infinite recursion?
     ctx["_"] = None
 
-    display_results = ctx.get("MDBPYSH_DISPLAY_RESULTS", True)
+    display_results = ctx.get("MONGOPYSH_DISPLAY_RESULTS", True)
 
     if isinstance(value, pymongo.cursor.Cursor) or isinstance(
         value, pymongo.command_cursor.CommandCursor

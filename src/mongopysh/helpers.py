@@ -148,12 +148,12 @@ def printcur(
     context: dict,
     cur: Union[pymongo.cursor.Cursor, pymongo.command_cursor.CommandCursor],
 ):
-    max_page_size = context.get("MDBPYSH_MAX_PAGE_SIZE", 20)
-    output_format = context.get("MDBPYSH_OUTPUT_FORMAT", "repr")
+    max_page_size = context.get("MONGOPYSH_MAX_PAGE_SIZE", 20)
+    output_format = context.get("MONGOPYSH_OUTPUT_FORMAT", "repr")
     json_options = context.get(
-        "MDBPYSH_OUTPUT_JSON_OPTIONS", bson.json_util.JSONOptions()
+        "MONGOPYSH_OUTPUT_JSON_OPTIONS", bson.json_util.JSONOptions()
     )
-    json_indent = context.get("MDBPYSH_OUTPUT_JSON_INDENT", None)
+    json_indent = context.get("MONGOPYSH_OUTPUT_JSON_INDENT", None)
 
     count = 0
     while count < max_page_size:

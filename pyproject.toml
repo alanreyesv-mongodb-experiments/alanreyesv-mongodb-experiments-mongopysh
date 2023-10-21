@@ -1,15 +1,15 @@
 [tool.poetry]
-name = "mdbpysh"
+name = "mongopysh"
 version = "2023.10.1"
-description = "Experimental Python-based replacement shell for MongoDB"
+description = "Experimental Python-based alternative shell for MongoDB"
 authors = ["Alan Reyes <alan.reyes@mongodb.com>"]
 readme = "README.md"
 packages = [
-    { include = "mdbpysh", from = "src" },
+    { include = "mongopysh", from = "src" },
 ]
 
 [tool.poetry.scripts]
-mdbpysh = "mdbpysh.app:main"
+mongopysh = "mongopysh.app:main"
 
 [tool.poetry.dependencies]
 python = "^3.9"
