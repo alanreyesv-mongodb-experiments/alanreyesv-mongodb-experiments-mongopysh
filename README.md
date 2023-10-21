@@ -9,14 +9,17 @@ an alternate shell.
 
 This is an experiment to do so.
 
-Install with:
-
+Install with `pip`:
 
 ```bash
-pip install git+http://..path..to..repo
+pip install git+https://github.com/alanreyesv-mongodb-experiments/mdbpysh.git
 ```
 
-(Also compatible and recoomended to use `pipx`)
+Also compatible and recomended to use [`pipx`](https://pypa.github.io/pipx/):
+
+```
+pipx install git+https://github.com/alanreyesv-mongodb-experiments/mdbpysh.git
+```
 
 
 

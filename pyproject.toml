@@ -14,7 +14,7 @@ mdbpysh = "mdbpysh.app:main"
 [tool.poetry.dependencies]
 python = "^3.9"
 pymongo = "^4.5.0"
-typer = "^0.9.0"
+typer = {extras = ["all"], version = "^0.9.0"}
 
 [build-system]
 requires = ["poetry-core"]
