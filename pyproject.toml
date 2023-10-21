@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "mdbpysh"
+version = "2023.10.1"
+description = "Experimental Python-based replacement shell for MongoDB"
+authors = ["Alan Reyes <alan.reyes@mongodb.com>"]
+readme = "README.md"
+packages = [
+    { include = "mdbpysh", from = "src" },
+]
+
+[tool.poetry.scripts]
+mdbpysh = "mdbpysh.app:main"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pymongo = "^4.5.0"
+typer = "^0.9.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
