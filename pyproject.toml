@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mongopysh"
-version = "2023.10.3"
+version = "2023.10.4"
 description = "Experimental Python-based alternative shell for MongoDB"
 authors = ["Alan Reyes <alan.reyes@mongodb.com>"]
 readme = "README.md"
