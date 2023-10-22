@@ -2,10 +2,20 @@ import functools
 import readline
 import rlcompleter
 import sys
-from typing import Annotated, Any, Optional
+from types import FunctionType
+from typing import Annotated, Optional
 
 import bson
 import bson.json_util
+from pymongo.database import Database
+from mongopysh.context import (
+    Context,
+    MONGOPYSH_DISPLAY_RESULTS,
+    MONGOPYSH_MAX_PAGE_SIZE,
+    MONGOPYSH_OUTPUT_FORMAT,
+    MONGOPYSH_OUTPUT_JSON_INDENT,
+    MONGOPYSH_OUTPUT_JSON_OPTIONS,
+)
 import mongopysh.extensions
 import mongopysh.shell
 import rich.console
@@ -15,38 +25,60 @@ import rich.repr
 import typer
 from mongopysh.helpers import connect, printcur, show_collections, show_dbs, use
 
+DEFAULTS = {
+    MONGOPYSH_DISPLAY_RESULTS: True,
+    MONGOPYSH_MAX_PAGE_SIZE: 20,
+    MONGOPYSH_OUTPUT_FORMAT: "repr",
+    MONGOPYSH_OUTPUT_JSON_OPTIONS: bson.json_util.JSONOptions(),
+    MONGOPYSH_OUTPUT_JSON_INDENT: None,
+}
+
+
+class ShellContext(Context):
+    def __init__(self) -> None:
+        console = rich.console.Console()
+        self._dict = {
+            "console": console,
+            "bson": bson,
+            "print": console.print,
+            "use": functools.partial(use, self),
+            "connect": functools.partial(connect),
+            "show_dbs": functools.partial(show_dbs, self),
+            "show_collections": functools.partial(show_collections, self),
+            "printcur": functools.partial(printcur, self),
+            "prompt": functools.partial(mongopysh.shell.default_prompt, self),
+        }
+
+    def set(self, key, value):
+        self.dict[key] = value
+
+    @property
+    def dict(self):
+        return self._dict
+
+    @property
+    def console(self) -> rich.console.Console:
+        return self._dict["console"]
+
+    @property
+    def db(self) -> Optional[Database]:
+        return self._dict.get("db")
+
+    @property
+    def prompt(self) -> FunctionType:
+        return self._dict["prompt"]
+
+    def get_flag(self, flag):
+        return self._dict.get(flag, DEFAULTS[flag])
+
 
 def cli(url: Annotated[Optional[str], typer.Argument()] = None):
     mongopysh.extensions.apply()
 
-    console = rich.console.Console()
-
-    context: dict[str, Any] = {"console": console}
-
-    context.setdefault("MONGOPYSH_DISPLAY_RESULTS", True)
-    context.setdefault("MONGOPYSH_MAX_PAGE_SIZE", 20)
-    context.setdefault("MONGOPYSH_OUTPUT_FORMAT", "repr")
-    context.setdefault("MONGOPYSH_OUTPUT_JSON_OPTIONS", bson.json_util.JSONOptions())
-    context.setdefault("MONGOPYSH_OUTPUT_JSON_INDENT", None)
-
-    context["bson"] = bson
-
-    context["print"] = console.print
-    context["pprint"] = rich.pretty.pprint
-
-    context["use"] = functools.partial(use, context)
-    context["connect"] = functools.partial(connect)
-    context["show_dbs"] = functools.partial(show_dbs, context)
-    context["show_collections"] = functools.partial(show_collections, context)
-
-    context["printcur"] = functools.partial(printcur, context)
-    context["pc"] = context["printcur"]
+    context = ShellContext()
 
     sys.displayhook = functools.partial(mongopysh.shell.displayhook, context)
-
-    context["prompt"] = functools.partial(mongopysh.shell.default_prompt, context)
-
-    readline.set_completer(rlcompleter.Completer(context).complete)
+    readline.set_completer(rlcompleter.Completer(context.dict).complete)
 
     # https://stackoverflow.com/questions/7116038/python-repl-tab-completion-on-macos
     if readline.__doc__ and ("libedit" in readline.__doc__):
@@ -59,17 +91,17 @@ def cli(url: Annotated[Optional[str], typer.Argument()] = None):
 
         data = db.client.server_info()
 
-        console.print(f"Using MongoDB: {data['version']}")
+        context.console.print(f"Using MongoDB: {data['version']}")
 
-        context["db"] = db
+        context.set("db", db)
     else:
-        context["db"] = None
+        context.set("db", None)
 
-    shell = mongopysh.shell.MongoPyShell(context=context)
+    shell = mongopysh.shell.MongoPyShell(context)
 
-    # TODO: Load RC
+    shell.loadrc()
 
-    sys.ps1 = context["prompt"]()
+    sys.ps1 = context.prompt()
 
     shell.interact(banner="MongoDB Python Shell")
 

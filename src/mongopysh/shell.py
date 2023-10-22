@@ -1,3 +1,4 @@
+import os
 import sys
 from code import InteractiveConsole
 
@@ -5,61 +6,75 @@ import pymongo.command_cursor
 import pymongo.cursor
 import pymongo.results
 from pymongo import MongoClient
-from pymongo.database import Database
 from pymongo.server_type import SERVER_TYPE
 from pymongo.topology_description import TOPOLOGY_TYPE
 import traceback
 
 from types import CodeType
-from typing import Optional
 
 from pymongo.topology_description import TopologyDescription
 
+from mongopysh.context import MONGOPYSH_DISPLAY_RESULTS, Context
+from mongopysh.helpers import printcur
+
 
 class MongoPyShell(InteractiveConsole):
-    def __init__(self, context: dict) -> None:
+    def __init__(self, context: Context) -> None:
         self.context = context
-        super().__init__(context)
+        super().__init__(context.dict)
 
     def runcode(self, code: CodeType) -> None:
         super().runcode(code)
-        sys.ps1 = self.context["prompt"]()
+        sys.ps1 = self.context.prompt()
 
     def showtraceback(self) -> None:
-        err_type, err_instance, err_traceback = sys.exc_info()
+        _, err_instance, err_traceback = sys.exc_info()
         tb = traceback.extract_tb(err_traceback, 1)
 
-        self.context["last_error"] = err_instance
-        self.context["last_traceback"] = tb
+        self.context.set("last_error", err_instance)
+        self.context.set("last_traceback", tb)
 
-        self.context["console"].print_exception(suppress=["code"])
+        self.context.console.print_exception(suppress=["code"])
+
+    def loadrc(self):
+        rc_path = os.path.expanduser("~/.mongopyshrc.py")
+
+        if not os.path.exists(rc_path):
+            return
+
+        with open(rc_path) as fp:
+            script = fp.read()
+
+        self.runsource(script, rc_path)
 
 
-def displayhook(ctx, value):
+def displayhook(ctx: Context, value):
     if value is None:
         return
 
-    # Prevent infinite recursion?
-    ctx["_"] = None
+    console = ctx.console
 
-    display_results = ctx.get("MONGOPYSH_DISPLAY_RESULTS", True)
+    # Prevent infinite recursion?
+    ctx.set("_", None)
+
+    display_results = ctx.get_flag(MONGOPYSH_DISPLAY_RESULTS)
 
     if isinstance(value, pymongo.cursor.Cursor) or isinstance(
         value, pymongo.command_cursor.CommandCursor
     ):
         if display_results:
-            ctx["printcur"](value)
+            printcur(ctx, value)
         else:
-            ctx["console"].print(value)
+            console.print(value)
 
-        ctx["it"] = value
+        ctx.set("it", value)
 
     elif isinstance(value, pymongo.results._WriteResult):
-        ctx["res"] = value
+        ctx.set("res", value)
     else:
-        ctx["console"].print(value)
+        console.print(value)
 
-    ctx["_"] = value
+    ctx.set("_", value)
 
 
 def getDefaultPromptPrefix() -> str:
@@ -141,8 +156,8 @@ def getTopologySpecificPrompt(client: MongoClient):
     return f"{setNamePrefix}{serverTypePrompt}"
 
 
-def default_prompt(ctx):
-    db: Optional[Database] = ctx["db"]
+def default_prompt(ctx: Context):
+    db = ctx.db
 
     # if (this.connectionInfo?.extraInfo?.is_stream) {
     #  return 'AtlasStreamProcessing> ';

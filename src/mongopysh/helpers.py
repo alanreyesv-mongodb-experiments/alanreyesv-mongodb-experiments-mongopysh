@@ -8,8 +8,15 @@ import bson.json_util
 import pymongo.cursor
 import pymongo.command_cursor
 from pymongo import MongoClient
-from pymongo.database import Database
 from pymongo.errors import OperationFailure
+
+from mongopysh.context import (
+    MONGOPYSH_MAX_PAGE_SIZE,
+    MONGOPYSH_OUTPUT_FORMAT,
+    MONGOPYSH_OUTPUT_JSON_INDENT,
+    MONGOPYSH_OUTPUT_JSON_OPTIONS,
+    Context,
+)
 
 
 def format_bytes(bytes_value: int):
@@ -44,8 +51,8 @@ def format_si(qty):
     return "{: 7.2f} T".format(qty / math.pow(1000, 4))
 
 
-def show_dbs(ctx):
-    db: Optional[Database] = ctx["db"]
+def show_dbs(ctx: Context):
+    db = ctx.db
 
     if db is None:
         raise Exception("No default connection")
@@ -59,7 +66,7 @@ def show_dbs(ctx):
     for it in result["databases"]:
         table.add_row(it["name"], format_bytes(it["sizeOnDisk"]))
 
-    ctx["console"].print(table)
+    ctx.console.print(table)
 
 
 def connect(url):
@@ -74,8 +81,9 @@ def connect(url):
 
 
 def use(ctx, db_name: str):
-    ctx["db"] = ctx["db"].client.get_database(db_name)
-    return ctx["db"]
+    db = ctx.db.client.get_database(db_name)
+    ctx.set("db", db)
+    return db
 
 
 BYTESTRING_MAX_LENGTH = 8
@@ -87,8 +95,11 @@ BYTES_STR_PADSIZE = 11
 INDEXES_PAD_LENGTH = len("INDEXES")
 
 
-def show_collections(ctx: dict, db_name: Optional[str] = None, system: bool = False):
-    db: Database = ctx["db"]
+def show_collections(ctx: Context, db_name: Optional[str] = None, system: bool = False):
+    db = ctx.db
+
+    if db is None:
+        raise Exception("No default connection")
 
     if db_name is not None:
         db = db.client.get_database(db_name)
@@ -141,19 +152,19 @@ def show_collections(ctx: dict, db_name: Optional[str] = None, system: bool = Fa
             format_bytes(stats["totalIndexSize"]),
         )
 
-    ctx["console"].print(table)
+    ctx.console.print(table)
 
 
 def printcur(
-    context: dict,
+    context: Context,
     cur: Union[pymongo.cursor.Cursor, pymongo.command_cursor.CommandCursor],
 ):
-    max_page_size = context.get("MONGOPYSH_MAX_PAGE_SIZE", 20)
-    output_format = context.get("MONGOPYSH_OUTPUT_FORMAT", "repr")
-    json_options = context.get(
-        "MONGOPYSH_OUTPUT_JSON_OPTIONS", bson.json_util.JSONOptions()
-    )
-    json_indent = context.get("MONGOPYSH_OUTPUT_JSON_INDENT", None)
+    max_page_size = context.get_flag(MONGOPYSH_MAX_PAGE_SIZE)
+    output_format = context.get_flag(MONGOPYSH_OUTPUT_FORMAT)
+    json_options = context.get_flag(MONGOPYSH_OUTPUT_JSON_OPTIONS)
+    json_indent = context.get_flag(MONGOPYSH_OUTPUT_JSON_INDENT)
+
+    console = context.console
 
     count = 0
     while count < max_page_size:
@@ -164,13 +175,13 @@ def printcur(
         count += 1
 
         if output_format == "json":
-            context["console"].print(
+            console.print(
                 bson.json_util.dumps(doc, json_options=json_options, indent=json_indent)
             )
         else:
-            context["console"].print(repr(doc))
+            console.print(repr(doc))
 
-    context["console"].print(f"(Returned {count} documents)")
+    console.print(f"(Returned {count} documents)")
 
     if not cur.alive:
-        context["console"].print("(Cursor exhausted)")
+        console.print("(Cursor exhausted)")
