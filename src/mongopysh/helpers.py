@@ -147,7 +147,7 @@ def show_collections(ctx: Context, db_name: Optional[str] = None, system: bool =
             format_si(stats["count"]) if "count" in stats else "N/A",
             format_bytes(stats["size"]),
             format_bytes(stats["storageSize"]),
-            format_bytes(stats["avgObjSize"]),
+            format_bytes(stats["avgObjSize"]) if "avgObjSize" in stats else "N/A",
             format_si(stats["nindexes"]),
             format_bytes(stats["totalIndexSize"]),
         )

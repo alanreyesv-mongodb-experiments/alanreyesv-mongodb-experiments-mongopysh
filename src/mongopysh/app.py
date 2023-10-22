@@ -50,7 +50,7 @@ class ShellContext(Context):
         }
 
     def set(self, key, value):
-        self.dict[key] = value
+        self._dict[key] = value
 
     @property
     def dict(self):

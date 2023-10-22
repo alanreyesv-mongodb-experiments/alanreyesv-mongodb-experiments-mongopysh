@@ -1,6 +1,9 @@
+import code
+import codeop
 import os
 import sys
 from code import InteractiveConsole
+from typing import Union
 
 import pymongo.command_cursor
 import pymongo.cursor
@@ -8,7 +11,6 @@ import pymongo.results
 from pymongo import MongoClient
 from pymongo.server_type import SERVER_TYPE
 from pymongo.topology_description import TOPOLOGY_TYPE
-import traceback
 
 from types import CodeType
 
@@ -20,21 +22,25 @@ from mongopysh.helpers import printcur
 
 class MongoPyShell(InteractiveConsole):
     def __init__(self, context: Context) -> None:
+        self.initializing = True
         self.context = context
-        super().__init__(context.dict)
+        super().__init__(locals=context.dict)
 
     def runcode(self, code: CodeType) -> None:
         super().runcode(code)
         sys.ps1 = self.context.prompt()
 
+    def showsyntaxerror(self, filename: Union[str, None] = None) -> None:
+        self.context.console.print_exception(suppress=[code, codeop])
+        if self.initializing:
+            self.context.console.print("Error running .mongopyshrc file")
+            raise SystemExit()
+
     def showtraceback(self) -> None:
-        _, err_instance, err_traceback = sys.exc_info()
-        tb = traceback.extract_tb(err_traceback, 1)
-
-        self.context.set("last_error", err_instance)
-        self.context.set("last_traceback", tb)
-
-        self.context.console.print_exception(suppress=["code"])
+        self.context.console.print_exception(suppress=[code, codeop])
+        if self.initializing:
+            self.context.console.print("Error running .mongopyshrc file")
+            raise SystemExit()
 
     def loadrc(self):
         rc_path = os.path.expanduser("~/.mongopyshrc.py")
@@ -43,9 +49,21 @@ class MongoPyShell(InteractiveConsole):
             return
 
         with open(rc_path) as fp:
-            script = fp.read()
+            script = fp.readlines()
 
-        self.runsource(script, rc_path)
+        requires_more_input = False
+
+        for line in script:
+            requires_more_input = self.push(line)
+
+        self.initializing = False
+
+        if requires_more_input:
+            self.resetbuffer()
+            self.context.console.print("Incomplete command in .mongopyshrc.py")
+
+    def write(self, data):
+        self.context.console.print(data, end="")
 
 
 def displayhook(ctx: Context, value):
