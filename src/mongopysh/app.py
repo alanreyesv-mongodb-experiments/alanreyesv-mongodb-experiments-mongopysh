@@ -49,6 +49,8 @@ class ShellContext(Context):
             "prompt": functools.partial(mongopysh.shell.default_prompt, self),
         }
 
+        self._dict.update(DEFAULTS)
+
     def set(self, key, value):
         self._dict[key] = value
 
@@ -86,7 +88,11 @@ def cli(url: Annotated[Optional[str], typer.Argument()] = None):
     else:
         readline.parse_and_bind("tab: complete")
 
+    if url is None:
+        url = "mongodb://localhost:27017/test?directConnection=true"
+
     if url is not None:
+
         db = connect(url)
 
         data = db.client.server_info()
